@@ -69,7 +69,7 @@ As informações estão espalhadas: uma planilha por fabricante, os portais das 
 |     | Problema                                                                                                                                            | Resposta do modelo                                                                                                      | Consultas     |
 |-----|-----------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------|---------------|
 | P1  | **Perda por vencimento no ponto de venda.** Não há controle de lote e validade na gôndola; o vencimento é descoberto tarde e vira prejuízo.         | `lote`; `item_visita`, com quantidade e menor validade encontradas; `vencimento_prod`, com a ocorrência e sua situação. | G01, G02, G06 |
-| P2  | **Promotoria sem controle.** O trabalho depende de promotores terceirizados, e não se sabe quem visitou cada loja, quando, nem por quanto tempo.    | `promotor`; `envia`, que liga o promotor aos fabricantes; `visita`, com data e horários.                                | G03, A04, A08 |
+| P2  | **Promotoria sem controle.** O trabalho depende de promotores terceirizados, e não se sabe quem visitou cada loja, quando, nem por quanto tempo.    | `promotor`; `envia_promotor`, que liga o promotor aos fabricantes; `visita`, com data e horários.                                | G03, A04, A08 |
 | P3  | **Pedidos e entregas sem rastro.** A venda é anotada só pelo total, o cliente é um nome digitado e a situação do pedido fica nos portais das redes. | `super_mercado` e `loja`, com CNPJ único; `pedido`, com situação e entrega prevista; `item_pedido`.                     | G04, G07      |
 | P4  | **Contratos e comissões sem registro.** O pagamento da comissão é marcado com um “OK” sem data, e o percentual é redigitado em cada linha.          | `contrato`, com vigência, percentual e meta; `comissao`, com base, percentual aplicado, situação e data de pagamento.   | G05, G08      |
 
@@ -218,7 +218,7 @@ O grupo levantou, com apoio de IA (seção 6), o que empresas de representação
 
 |       | Requisito                                                                                                                                                                     |
 |-------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| RNF01 | MySQL 8 com InnoDB e `utf8mb4_0900_ai_ci`: transações ACID, integridade referencial e acentuação correta.                                                                     |
+| RNF01 | MySQL 8 com InnoDB e `utf8mb4_unicode_ci`: transações ACID, integridade referencial e acentuação correta.                                                                     |
 | RNF02 | Dados pessoais de promotores e contatos (CPF, telefone, e-mail) limitados ao necessário, com acesso restrito, guarda de 5 anos e anonimização depois (LGPD, Lei 13.709/2018). |
 | RNF03 | Consultas gerenciais e de auditoria em menos de 2 segundos com a massa de teste, apoiadas nos índices de CNPJ, CPF, EAN e das chaves estrangeiras.                            |
 | RNF04 | Pedidos, visitas e ocorrências de vencido nunca são excluídos.                                                                                                                |
@@ -269,7 +269,7 @@ A Entrega 1 recebeu 1,15 de 1,60. Cada apontamento e o que foi feito:
 | Todas as cardinalidades iguais, (1,n)–(1,n)                                                               | Revistas uma a uma e confirmadas no último bloco da entrevista.                                                                                                         | Cardinalidade única não descreve a operação e gera FKs erradas.                             |
 | N:N produto–pedido sem quantidade e preço; N:N produto–visita sem atributos; dados de gôndola em VISITA   | Criadas ITEM_PEDIDO (quantidade, preço negociado) e ITEM_VISITA (quantidade em gôndola, validade encontrada).                                                           | Sem elas não se sabe o que foi vendido nem o que estava na gôndola.                         |
 | Entidades sugeridas: ITEM, COMISSÃO e histórico de status                                                 | ITEM_PEDIDO, ITEM_VISITA e COMISSAO criadas. O histórico de status não entrou.                                                                                          | Item e comissão resolvem P3 e P4. As consultas desta versão usam só a situação atual (1.5). |
-| DER e dicionário divergentes: cardinalidades, nomes de telefone e e-mail, NCM                             | O dicionário passou a ser gerado do `script.sql`, com os nomes do modelo lógico.                                                                                        | Uma fonte só elimina a divergência.                                                         |
+| DER e dicionário divergentes: cardinalidades, nomes de telefone e e-mail, NCM                             | O dicionário passou a ser gerado do `script_completo.sql`, com os nomes do modelo lógico.                                                                                        | Uma fonte só elimina a divergência.                                                         |
 | Dicionário só com a cardinalidade máxima, sem associativas                                                | Relacionamentos com mínima e máxima e seção de entidades associativas.                                                                                                  | A mínima define se a FK é obrigatória.                                                      |
 | Notação do dicionário inconsistente                                                                       | Expressão, leitura e tabela saem da mesma estrutura.                                                                                                                    | Evita que uma contradiga a outra.                                                           |
 | Prefixos misturados (`DS_` e `CD_INSCRICAO_ESTADUAL`)                                                     | Padronizado `ds_inscricao_estadual`.                                                                                                                                    | Mesmo dado, mesmo nome.                                                                     |
@@ -321,7 +321,7 @@ Em **N:N**, o relacionamento vira tabela associativa com as chaves dos dois lado
 
 - `item_pedido` (pedido × produto): chave própria, `UNIQUE (id_pedido, id_produto)`, quantidade e preço negociado.
 - `item_visita` (visita × produto): chave própria, `UNIQUE (id_visita, id_produto)`, quantidade em gôndola e validade encontrada.
-- `envia` (fabricante × promotor): chave composta `(id_fabricante, id_promotor)`, sem outros atributos.
+- `envia_promotor` (fabricante × promotor): chave composta `(id_fabricante, id_promotor)`, sem outros atributos.
 
 Não há relacionamento 1:1 nem generalização no DER, então nenhuma estratégia de especialização foi necessária.
 
@@ -429,7 +429,7 @@ Não há relacionamento 1:1 nem generalização no DER, então nenhuma estratég
 <td><code>id_loja</code> → <code>loja</code>; <code>id_produto</code> → <code>produto</code></td>
 </tr>
 <tr class="even">
-<td><code>envia</code></td>
+<td><code>envia_promotor</code></td>
 <td>(<code>id_fabricante, id_promotor</code>)</td>
 <td><code>id_fabricante</code> → <code>fabricante</code>; <code>id_promotor</code> → <code>promotor</code></td>
 </tr>
@@ -479,14 +479,14 @@ O ponto de partida foi a própria planilha da Figura 2, que mistura cliente, ped
 - O grupo repetido `{produto, qtd, preco}` foi para `item_pedido`, uma linha por produto. O equivalente da visita foi para `item_visita`.
 - Telefone e e-mail, que podem ser vários, ganharam tabelas próprias (`telefone_loja`, `email_contato` e as demais).
 - O endereço foi dividido em logradouro, número, complemento, bairro, UF e CEP.
-- O vínculo fabricante–promotor saiu de colunas repetidas para `envia`.
+- O vínculo fabricante–promotor saiu de colunas repetidas para `envia_promotor`.
 - “15/jul” virou `DATE` completo; o “OK” virou `status_pagamento` e `dt_pagamento`.
 
 #### Segunda forma normal
 
 - Em `item_pedido`, a chave natural é (pedido, produto). Descrição, EAN e preço de tabela dependem só do produto — dependência parcial —, então ficaram em `produto`. No item restaram quantidade e preço negociado, que dependem do par: o preço negociado vale para aquele produto naquele pedido.
 - `item_visita` segue a mesma lógica: quantidade em gôndola e validade dependem da visita e do produto.
-- `envia` tem chave composta, mas nenhum outro atributo. As outras tabelas têm chave simples e já estão na 2FN.
+- `envia_promotor` tem chave composta, mas nenhum outro atributo. As outras tabelas têm chave simples e já estão na 2FN.
 
 #### Terceira forma normal
 
@@ -510,11 +510,11 @@ Cada forma normal resolveu um problema visível na planilha. Sem a 1FN, não cab
 
 #### Chaves primárias
 
-As entidades usam chave substituta `INT AUTO_INCREMENT`. CNPJ, CPF e EAN são únicos (RN02), mas são longos e podem precisar de correção; uma chave numérica estável deixa as FKs menores e os índices do InnoDB mais eficientes. A única chave composta é a de `envia`, em que o par fabricante–promotor é a própria identidade da linha e impede vínculo duplicado. `item_pedido` e `item_visita` têm chave própria, para serem referenciados com facilidade, e `UNIQUE` no par, para que o mesmo produto não apareça duas vezes no mesmo pedido ou visita.
+As entidades usam chave substituta `INT AUTO_INCREMENT`. CNPJ, CPF e EAN são únicos (RN02), mas são longos e podem precisar de correção; uma chave numérica estável deixa as FKs menores e os índices do InnoDB mais eficientes. A única chave composta é a de `envia_promotor`, em que o par fabricante–promotor é a própria identidade da linha e impede vínculo duplicado. `item_pedido` e `item_visita` têm chave própria, para serem referenciados com facilidade, e `UNIQUE` no par, para que o mesmo produto não apareça duas vezes no mesmo pedido ou visita.
 
 #### Chaves estrangeiras e exclusão
 
-Cada FK implementa um relacionamento da seção 1.2, e todas são `NOT NULL`, porque a mínima do lado 1 é sempre 1. `ON DELETE RESTRICT` protege quem tem histórico — `pedido`, `item_pedido`, `visita`, `item_visita`, `vencimento_prod`, `loja`, `contrato`, `produto` e `envia` (RO02, RNF04). `ON DELETE CASCADE` fica para o que só existe em função do pai: `contato`, `lote` e `comissao`.
+Cada FK implementa um relacionamento da seção 1.2, e todas são `NOT NULL`, porque a mínima do lado 1 é sempre 1. `ON DELETE RESTRICT` protege quem tem histórico — `pedido`, `item_pedido`, `visita`, `item_visita`, `vencimento_prod`, `loja`, `contrato`, `produto` e `envia_promotor` (RO02, RNF04). `ON DELETE CASCADE` fica para o que só existe em função do pai: `contato`, `lote` e `comissao`.
 
 #### Cardinalidades
 
@@ -608,7 +608,7 @@ Os fatos estão em `item_pedido` (vendas), `item_visita` (gôndola), `visita` (p
 
 O modelo lógico foi feito no **brModelo 3.2** (arquivo `diagramas/Modelo_Logico.brM3`), na notação de modelo lógico: cada tabela traz o nome no topo e uma linha por coluna, com o tipo de dado; as chaves aparecem como `PK`, `FK` ou `PK, FK`; cada ligação mostra `(mín, máx)` nas duas pontas. São 24 tabelas, 139 colunas e 28 chaves estrangeiras.
 
-Na Figura 4, a chave amarela indica `PK`, a verde indica `FK` e as duas juntas indicam `PK, FK`, como nas colunas de `envia`. O “U” marca as colunas `UNIQUE` (CNPJ, CPF e EAN). As demais restrições — `NOT NULL`, `CHECK` e `DEFAULT` — não aparecem no diagrama e estão no dicionário (`docs/Dicionario_de_Dados_letty.html`) e no script (seção 3).
+Na Figura 4, a chave amarela indica `PK`, a verde indica `FK` e as duas juntas indicam `PK, FK`, como nas colunas de `envia_promotor`. O “U” marca as colunas `UNIQUE` (CNPJ, CPF e EAN). As demais restrições — `NOT NULL`, `CHECK` e `DEFAULT` — não aparecem no diagrama e estão no dicionário (`docs/Dicionario_de_Dados_letty.html`) e no script (seção 3).
 
 ![Figura 4](diagramas/Modelo_Logico.png)
 
@@ -616,11 +616,11 @@ Na Figura 4, a chave amarela indica `PK`, a verde indica `FK` e as duas juntas i
 
 ## 3. Script SQL completo
 
-O arquivo `docs/script.sql` tem 2.691 linhas e roda no MySQL 8 do começo ao fim: cria o banco `letty_gestao_comercial` se ainda não existir, apaga as tabelas anteriores, cria as 24 tabelas, carrega a massa e executa as consultas.
+O arquivo `docs/script_completo.sql` tem 2.691 linhas e roda no MySQL 8 do começo ao fim: cria o banco `letty_gestao_comercial` se ainda não existir, apaga as tabelas anteriores, cria as 24 tabelas, carrega a massa e executa as consultas.
 
 |     | Bloco                       | Conteúdo                                                                                                        |
 |-----|-----------------------------|-----------------------------------------------------------------------------------------------------------------|
-| 1   | `CREATE DATABASE`           | `utf8mb4` e `utf8mb4_0900_ai_ci`, seguido de `DROP TABLE IF EXISTS` das 24 tabelas com `FOREIGN_KEY_CHECKS = 0` |
+| 1   | `CREATE DATABASE`           | `utf8mb4` e `utf8mb4_unicode_ci`, seguido de `DROP TABLE IF EXISTS` das 24 tabelas com `FOREIGN_KEY_CHECKS = 0` |
 | 2   | `CREATE TABLE` e restrições | 24 tabelas InnoDB com PK, FK (`RESTRICT` ou `CASCADE`), `NOT NULL`, `UNIQUE` e `CHECK`                          |
 | 3   | `INSERT INTO`               | Massa fictícia com 2.058 registros (seção 4)                                                                    |
 | 4   | `SELECT` com `JOIN`         | S01: catálogo com fabricante e lotes. S02: lojas com rede, telefone e e-mail                                    |
@@ -836,7 +836,7 @@ Amostra das saídas, para conferência na demonstração.
 
 ## 4. Massa de dados
 
-A massa fica no bloco 3 do `docs/script.sql` e é inteiramente fictícia: nenhum nome, CNPJ, CPF, contato ou valor da Letty foi usado. Os nomes são inventados, mas a estrutura é a real — três fabricantes (água gaseificada importada, queijos e doces de banana), um cliente com 55 lojas e um centro de distribuição, e outro com uma loja só —, e as regras são as observadas.
+A massa fica no bloco 3 do `docs/script_completo.sql` e é inteiramente fictícia: nenhum nome, CNPJ, CPF, contato ou valor da Letty foi usado. Os nomes são inventados, mas a estrutura é a real — três fabricantes (água gaseificada importada, queijos e doces de banana), um cliente com 55 lojas e um centro de distribuição, e outro com uma loja só —, e as regras são as observadas.
 
 ### Volume
 
@@ -860,7 +860,7 @@ A massa fica no bloco 3 do `docs/script.sql` e é inteiramente fictícia: nenhum
 | `email_contato`       | 8         | 1 por contato                                                                                                                                                                      |
 | `promotor`            | 14        | 1 promotor por loja, até 3 nas grandes; promotores de rota atendem ≈ 4 lojas                                                                                                       |
 | `telefone_promotor`   | 14        | 1 por promotor                                                                                                                                                                     |
-| `envia`               | 23        | promotores ligados a 1, 2 ou 3 fabricantes                                                                                                                                         |
+| `envia_promotor`      | 23        | promotores ligados a 1, 2 ou 3 fabricantes                                                                                                                                         |
 | `pedido`              | 34        | ≈ 1 pedido por mês por fabricante (planilha: 4 pedidos da FruitLog em 4 meses) × 3 fabricantes × 10 meses + 1 em negociação                                                        |
 | `item_pedido`         | 117       | 2 a 5 produtos por pedido na rede maior, 1 a 3 na menor (média 3,5)                                                                                                                |
 | `visita`              | 317       | visitas a cada 7 a 30 dias (entrevista) em 52 lojas ativas (3 nunca visitadas), nos últimos 95 dias                                                                                |
@@ -901,7 +901,7 @@ Estrutura da branch `main`:
     │   ├── Modelo_Logico.png              modelo lógico (brModelo)
     │   └── Modelo_Logico.brM3             arquivo do brModelo
     ├── docs/
-    │   ├── script.sql                     estrutura, massa e consultas
+    │   ├── script_completo.sql            estrutura, massa e consultas
     │   └── Dicionario_de_Dados_letty.html dicionário de dados
     ├── levantamento/
     │   └── levantamento.md                levantamento das entrevistas
@@ -920,7 +920,7 @@ Este README é o relatório técnico; a versão em PDF está em `docs/Relatorio_
 | DER conceitual revisado     | `diagramas/DER_Conceitual_Revisado.png` | Arquivo do brModelo |
 | Modelo lógico               | `diagramas/Modelo_Logico.png`, `.brM3`  | Figura 4            |
 | Dicionário de dados         | `docs/Dicionario_de_Dados_letty.html`   | Apêndice B          |
-| Script SQL e massa de dados | `docs/script.sql`                       | Seções 3 e 4        |
+| Script SQL e massa de dados | `docs/script_completo.sql`              | Seções 3 e 4        |
 | Levantamento                | `levantamento/levantamento.md`          | Apêndice A          |
 | Evidências                  | `evidencias/` (PNG e JPG)               | Figuras 1 a 3       |
 
@@ -936,7 +936,7 @@ A IA foi usada como apoio nas duas entregas, e o resultado foi revisado pelo gru
 |------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Etapa                  | Roteiro da entrevista; primeiras versões do README e do dicionário.                                                                                                                                                                                                      | Pesquisa de processos, requisitos, regras e KPIs típicos de representação comercial; revisão do README contra o script e o esqueleto; ajustes no script (cabeçalhos, consultas G06–G08 e A06–A08, reescrita de G01, G03 e G04); geração do dicionário em HTML e da massa de dados; montagem e revisão deste PDF.                                                                                                                                                                           |
 | Motivo                 | Ganhar tempo no roteiro e padronizar a documentação.                                                                                                                                                                                                                     | Achar divergências entre relatório, dicionário, modelo lógico e SQL, e montar uma massa no tamanho real da operação, com casos para todas as consultas.                                                                                                                                                                                                                                                                                                                                    |
-| Prompts                | “Gere um roteiro de perguntas para entrevista de levantamento de requisitos com um representante comercial de produtos alimentícios do varejo.” / “Elabore um dicionário de dados conceitual/físico para o sistema de gestão comercial com base nas entidades mapeadas.” | “Com todo o projeto que possui na pasta letty, crie uma pasta dentro dela e dentro da pasta crie um PDF seguindo o esqueleto de entrega 2”, com o esqueleto anexo. A IA perguntou que base usar, e o grupo escolheu o modelo do brModelo e do `script.sql`. Depois: inclusão do bloco de `DROP TABLE` no script e revisão visual e textual do PDF.                                                                                                                                         |
+| Prompts                | “Gere um roteiro de perguntas para entrevista de levantamento de requisitos com um representante comercial de produtos alimentícios do varejo.” / “Elabore um dicionário de dados conceitual/físico para o sistema de gestão comercial com base nas entidades mapeadas.” | “Com todo o projeto que possui na pasta letty, crie uma pasta dentro dela e dentro da pasta crie um PDF seguindo o esqueleto de entrega 2”, com o esqueleto anexo. A IA perguntou que base usar, e o grupo escolheu o modelo do brModelo e do `script_completo.sql`. Depois: inclusão do bloco de `DROP TABLE` no script e revisão visual e textual do PDF.                                                                                                                                         |
 | Resposta               | Roteiro com 20 perguntas, dicionário em tabela e README preenchido.                                                                                                                                                                                                      | Relatório completo, massa com 2.058 registros, consultas reescritas e diagramas provisórios, depois trocados pelos do brModelo.                                                                                                                                                                                                                                                                                                                                                            |
 | Conferência            | Comparação com a entrevista presencial.                                                                                                                                                                                                                                  | Os números do porte usados na massa foram conferidos com a planilha (Figura 2) e com as entrevistas. Lei 4.886/1965 e LGPD: texto oficial em planalto.gov.br.                                                                                                                                                                                                                                                                                                                              |
 | Rejeitado ou corrigido | Perguntas, tipos e regras genéricos foram trocados pelos da Letty.                                                                                                                                                                                                       | O volume de 15 a 30 pedidos por semana do README antigo foi descartado por não bater com a planilha. A versão ampliada do modelo (despesas, previsão de vendas, pesquisa de preço) ficou como evolução. Os diagramas gerados pela IA foram substituídos pelos do brModelo. Na conferência do script, o grupo viu que a massa não tinha lotes suficientes para os produtos vendidos e conferidos; a massa foi refeita com lotes ao longo de 14 meses e ligada às visitas e aos vencimentos. |
@@ -953,8 +953,8 @@ Pitch de oito minutos, com uma ideia por slide e nenhum bloco de texto para ler.
 |-----|---------------|-----------------------------------------------------------------------------------------------------------------------------------------------|-------|
 | 1   | Problema      | A planilha da FruitLog na tela: um representante, três fabricantes, 55 lojas, e o controle num “OK” escrito à mão. P1 a P4 em uma frase cada. | 1:00  |
 | 2   | Solução       | Os três fluxos do banco: fabricante → contrato → comissão; rede → loja → pedido; promotor → visita → gôndola → vencimento.                    | 1:00  |
-| 3   | Modelo lógico | A Figura 4, com destaque para `item_pedido`, `item_visita` e `envia`.                                                                         | 1:15  |
-| 4   | Implementação | O `script.sql` rodando do zero; um `CHECK` recusando um valor inválido.                                                                       | 1:00  |
+| 3   | Modelo lógico | A Figura 4, com destaque para `item_pedido`, `item_visita` e `envia_promotor`.                                                                | 1:15  |
+| 4   | Implementação | O `script_completo.sql` rodando do zero; um `CHECK` recusando um valor inválido.                                                                       | 1:00  |
 | 5   | Consultas     | G01 (validade), G08 (comissões a receber), A04 e A08 (lojas esquecidas), A03 (preço abaixo da tabela).                                        | 2:00  |
 | 6   | BI e IA       | Esboço do painel com os seis indicadores; previsão de vencimento e rota dos promotores.                                                       | 1:00  |
 | 7   | Benefícios    | Menos perda por vencimento, comissão cobrada no prazo, visitas auditáveis, pedidos rastreáveis.                                               | 0:45  |
